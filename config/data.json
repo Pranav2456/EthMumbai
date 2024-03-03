@@ -1,0 +1,35 @@
+{
+    "hardhat": {
+        "TestToken": {
+            "address": ""
+        },
+        "PawFiStaking": {
+            "address": "",
+            "cap": 100,
+            "duration": 1
+        }
+    },
+    "sepolia": {
+        "TestToken": {
+            "address": ""
+        },
+        "PawFiStaking": {
+            "address": "",
+            "cap": 100,
+            "duration": 7
+        }
+    },
+    "mainnet": {
+        "StakingToken": {
+            "address": ""
+        },
+        "RewardToken": {
+            "address": ""
+        },
+        "PawFiStaking": {
+            "address": "",
+            "cap": "",
+            "duration": ""
+        }
+    }
+}
