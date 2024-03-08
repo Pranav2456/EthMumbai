@@ -42,6 +42,7 @@ contract ERC1155WebtoonHolder is ERC1155 {
      * @param id The ID of the ERC1155 token to check the balance for.
      * @return The balance of the specified ERC1155 token for the given address.
      */
+
     function balanceOf(address account, uint256 id) public view override returns (uint256) {
         return erc1155Balances[id][account];
     }
@@ -51,6 +52,7 @@ contract ERC1155WebtoonHolder is ERC1155 {
      * @param erc721TokenId The ID of the ERC721 token to get or create the ERC1155 token ID for.
      * @return The ERC1155 token ID associated with the provided ERC721 token ID.
      */
+    
     function _mapERC721ToERC1155TokenId(uint256 erc721TokenId) private returns (uint256) {
     uint256 erc1155TokenId = erc721ToERC1155[erc721TokenId];
     if (erc1155TokenId == 0) {
