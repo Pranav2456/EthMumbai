@@ -28,9 +28,6 @@ contract ERC1155WebtoonHolder is ERC1155 {
     function mintFromERC721(uint256[] calldata erc721TokenIds) public {
         for (uint256 i = 0; i < erc721TokenIds.length; i++) {
             uint256 erc721TokenId = erc721TokenIds[i];
-            if (erc721Contract.ownerOf(erc721TokenId) != msg.sender) {
-                revert("You don't own this ERC721 token");
-            }
 
             uint256 erc1155TokenId = _mapERC721ToERC1155TokenId(erc721TokenId);
             _mint(msg.sender, erc1155TokenId, 1, "");
