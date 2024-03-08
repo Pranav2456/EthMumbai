@@ -7,13 +7,15 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 error URIAlreadySet();
 error URINotSet();
+error NotApprovedArtist();
+
 
 /// @title ERC721 contract for the webtoon NFTs
-contract ERC721Webtoon is ERC721URIStorage{
+contract ERC721Webtoon is ERC721URIStorage, Ownable{
+    /// @notice The next token ID
     uint256 private _nextTokenId;
-    address private _owner;
-    string private _name;
-    string private _symbol;
+    /// @notice Mapping of artist addresses to their approval status
+    mapping(address => bool) public isApprovedArtist;
 
 /// @notice Event emitted when a new webtoon is minted
     event WebtoonMinted(
@@ -21,17 +23,28 @@ contract ERC721Webtoon is ERC721URIStorage{
         uint256 indexed tokenId,
         string tokenURI
     );
+/// @notice Event emitted when an artist is approved
+    event ArtistApproved(address indexed artistAddress);
 
-   constructor(string memory name, string memory symbol) ERC721(name,symbol) {
-        _name = name;
-        _symbol = symbol;
+   constructor(address initialOwner) ERC721("name","symbol") Ownable(initialOwner){}
+
+/// @notice Approves an artist to mint webtoons
+   function approveArtist(address artistAddress) public onlyOwner {
+        isApprovedArtist[artistAddress] = true;
+        emit ArtistApproved(artistAddress);
     }
 
+/// @notice Mints a new webtoon NFT
     function mintWebtoon(address to, string memory tokenURI) public returns (uint256){
+        if(!isApprovedArtist[msg.sender]){
+            revert NotApprovedArtist();
+        } else {
         uint256 tokenId = _nextTokenId++;
         _safeMint(to, tokenId);
         _setTokenURI(tokenId, tokenURI);
+        emit WebtoonMinted(to, tokenId, tokenURI);
         return tokenId;
+        }
     }
    }
    
