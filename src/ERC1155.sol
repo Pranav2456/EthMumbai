@@ -32,7 +32,7 @@ contract ERC1155WebtoonHolder is ERC1155 {
                 revert("You don't own this ERC721 token");
             }
 
-            uint256 erc1155TokenId = _getOrCreateERC1155TokenId(erc721TokenId);
+            uint256 erc1155TokenId = _mapERC721ToERC1155TokenId(erc721TokenId);
             _mint(msg.sender, erc1155TokenId, 1, "");
             erc1155Balances[erc1155TokenId][msg.sender]++;
             emit MintedFromERC721(erc721TokenId, erc1155TokenId, msg.sender);
@@ -54,7 +54,7 @@ contract ERC1155WebtoonHolder is ERC1155 {
      * @param erc721TokenId The ID of the ERC721 token to get or create the ERC1155 token ID for.
      * @return The ERC1155 token ID associated with the provided ERC721 token ID.
      */
-    function _getOrCreateERC1155TokenId(uint256 erc721TokenId) private returns (uint256) {
+    function _mapERC721ToERC1155TokenId(uint256 erc721TokenId) private returns (uint256) {
     uint256 erc1155TokenId = erc721ToERC1155[erc721TokenId];
     if (erc1155TokenId == 0) {
         erc1155TokenId = erc721TokenId; // Directly use the ERC721 Token ID
