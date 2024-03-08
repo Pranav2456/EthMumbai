@@ -6,10 +6,16 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "./ERC721.sol"; 
 
 contract ERC1155WebtoonHolder is ERC1155 {
+/// @notice The ERC721 contract that will be used to mint ERC1155 tokens.
     ERC721Webtoon public immutable erc721Contract;
 
+/// @notice Mapping of ERC721 token IDs to ERC1155 token IDs.
     mapping(uint256 => uint256) private erc721ToERC1155;
+/// @notice Mapping of ERC1155 token IDs to balances for each address.
     mapping(uint256 => mapping(address => uint256)) public erc1155Balances;
+
+/// @notice Event emitted when an ERC1155 token is minted from an ERC721 token
+    event MintedFromERC721(uint256 indexed erc721TokenId, uint256 indexed erc1155TokenId, address indexed account);
 
     constructor(address _erc721Contract) ERC1155("") {
         erc721Contract = ERC721Webtoon(_erc721Contract);
@@ -29,6 +35,7 @@ contract ERC1155WebtoonHolder is ERC1155 {
             uint256 erc1155TokenId = _getOrCreateERC1155TokenId(erc721TokenId);
             _mint(msg.sender, erc1155TokenId, 1, "");
             erc1155Balances[erc1155TokenId][msg.sender]++;
+            emit MintedFromERC721(erc721TokenId, erc1155TokenId, msg.sender);
         }
     }
 
@@ -43,27 +50,16 @@ contract ERC1155WebtoonHolder is ERC1155 {
     }
 
     /**
-     * @dev Returns the ERC1155 token ID associated with the provided ERC721 token ID,
-     *      creating a new one if it doesn't exist.
+     * @dev Ensure that the provided ERC721 token ID is associated with an ERC1155 token ID.
      * @param erc721TokenId The ID of the ERC721 token to get or create the ERC1155 token ID for.
      * @return The ERC1155 token ID associated with the provided ERC721 token ID.
      */
     function _getOrCreateERC1155TokenId(uint256 erc721TokenId) private returns (uint256) {
-        uint256 erc1155TokenId = erc721ToERC1155[erc721TokenId];
-        if (erc1155TokenId == 0) {
-            erc1155TokenId = _generateUniqueERC1155TokenId(erc721TokenId);
-            erc721ToERC1155[erc721TokenId] = erc1155TokenId;
-        }
-        return erc1155TokenId;
+    uint256 erc1155TokenId = erc721ToERC1155[erc721TokenId];
+    if (erc1155TokenId == 0) {
+        erc1155TokenId = erc721TokenId; // Directly use the ERC721 Token ID
+        erc721ToERC1155[erc721TokenId] = erc1155TokenId;
     }
-
-    /**
-     * @dev Generates a unique ERC1155 token ID based on the provided ERC721 token ID and token URI.
-     * @param erc721TokenId The ID of the ERC721 token to generate the ERC1155 token ID for.
-     * @return The generated ERC1155 token ID.
-     */
-    function _generateUniqueERC1155TokenId(uint256 erc721TokenId) private view returns (uint256) {
-        string memory tokenURI = erc721Contract.tokenURI(erc721TokenId);
-        return uint256(keccak256(abi.encodePacked(tokenURI)));
+    return erc1155TokenId;
     }
 }
