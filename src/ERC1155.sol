@@ -2,10 +2,11 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155URIStorage.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./ERC721.sol"; 
 
-contract ERC1155WebtoonHolder is ERC1155 {
+contract ERC1155WebtoonHolder is ERC1155 , ERC1155URIStorage {
 /// @notice The ERC721 contract that will be used to mint ERC1155 tokens.
     ERC721Webtoon public immutable erc721Contract;
 
@@ -17,7 +18,7 @@ contract ERC1155WebtoonHolder is ERC1155 {
 /// @notice Event emitted when an ERC1155 token is minted from an ERC721 token
     event MintedFromERC721(uint256 indexed erc721TokenId, uint256 indexed erc1155TokenId, address indexed account);
 
-    constructor(address _erc721Contract) ERC1155("") {
+    constructor(address _erc721Contract, string memory baseURI) ERC1155(baseURI) {
         erc721Contract = ERC721Webtoon(_erc721Contract);
     }
 
@@ -28,9 +29,12 @@ contract ERC1155WebtoonHolder is ERC1155 {
     function mintFromERC721(uint256[] calldata erc721TokenIds) public {
         for (uint256 i = 0; i < erc721TokenIds.length; i++) {
             uint256 erc721TokenId = erc721TokenIds[i];
-
             uint256 erc1155TokenId = _mapERC721ToERC1155TokenId(erc721TokenId);
-            _mint(msg.sender, erc1155TokenId, 1, "");
+
+            string memory tokenURI = erc721Contract.tokenURI(erc721TokenId);
+
+            _mint(msg.sender, erc1155TokenId, 1, "");                
+            _setURI(erc1155TokenId, tokenURI);
             erc1155Balances[erc1155TokenId][msg.sender]++;
             emit MintedFromERC721(erc721TokenId, erc1155TokenId, msg.sender);
         }
@@ -47,12 +51,18 @@ contract ERC1155WebtoonHolder is ERC1155 {
         return erc1155Balances[id][account];
     }
 
-    /**
+   
+
+     // Overrides for ERC1155URIStorage and ERC1155Supply compatibility
+    function uri(uint256 tokenId) public view virtual override(ERC1155, ERC1155URIStorage) returns (string memory) {
+        return ERC1155URIStorage.uri(tokenId);
+    }
+
+     /**
      * @dev Ensure that the provided ERC721 token ID is associated with an ERC1155 token ID.
      * @param erc721TokenId The ID of the ERC721 token to get or create the ERC1155 token ID for.
      * @return The ERC1155 token ID associated with the provided ERC721 token ID.
      */
-    
     function _mapERC721ToERC1155TokenId(uint256 erc721TokenId) private returns (uint256) {
     uint256 erc1155TokenId = erc721ToERC1155[erc721TokenId];
     if (erc1155TokenId == 0) {
