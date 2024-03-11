@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+
 import "./ERC721.sol";
 import "./ERC1155.sol";
+
 
 contract WebtoonSale {
     ERC721Webtoon public immutable erc721Contract;
@@ -12,7 +14,6 @@ contract WebtoonSale {
         uint256 tokenId;
         address seller;
         uint256 price;
-        bool active;
     }
 
     mapping(uint256 => Listing) public listings;
@@ -56,7 +57,7 @@ contract WebtoonSale {
             revert NotApproved();
         }
 
-        listings[tokenId] = Listing(tokenId, msg.sender, price, true);
+        listings[tokenId] = Listing(tokenId, msg.sender, price);
         emit Listed(tokenId, msg.sender, price);
     }
 
@@ -66,10 +67,6 @@ contract WebtoonSale {
      */
     function buyNFT(uint256 tokenId) public payable {
         Listing memory listing = listings[tokenId];
-
-        if (!listing.active) {
-            revert NFTnotListed();
-        }
 
         if (msg.value < listing.price) {
             revert InsufficientFunds();
@@ -85,8 +82,6 @@ contract WebtoonSale {
         require(feeSuccess && sellerSuccess, "Payment transfers failed");
 
         // Update ownership and mint ERC1155 tokens
-        //erc721Contract.safeTransferFrom(listing.seller, msg.sender, tokenId);
-        //listings[tokenId].active = false; 
         erc1155Contract.mintFromERC721(new uint256[](tokenId)); 
 
         emit Sold(tokenId, listing.seller, msg.sender, listing.price);
