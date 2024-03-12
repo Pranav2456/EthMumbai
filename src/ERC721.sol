@@ -7,7 +7,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 error URIAlreadySet();
 error URINotSet();
-error NotApprovedArtist();
 
 
 /// @title ERC721 contract for the webtoon NFTs
@@ -37,7 +36,7 @@ contract ERC721Webtoon is ERC721URIStorage, Ownable{
 /// @notice Mints a new webtoon NFT
     function mintWebtoon(address to, string memory tokenURI) public returns (uint256){
         if(!isApprovedArtist[msg.sender]){
-            revert NotApprovedArtist();
+            revert("Not approved artist");
         } else {
         uint256 tokenId = _nextTokenId++;
         _safeMint(to, tokenId);
