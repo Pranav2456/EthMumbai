@@ -1,0 +1,10 @@
+{
+    "sepolia": {
+        "ERC721Webtoon": {
+            "address": " 0x23Efd6b4ebCF50e549f7C0e920d8A73705aAF059",
+            "initialOwner": " 0x23Efd6b4ebCF50e549f7C0e920d8A73705aAF059"
+        }
+
+
+    }
+}

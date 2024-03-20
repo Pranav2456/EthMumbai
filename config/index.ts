@@ -1,3 +1,3 @@
 import data from "./data.json";
 
-export = data;
+export default data;
