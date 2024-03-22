@@ -1,32 +1,22 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity 0.8.20;
 
-import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/extensions/ERC1155URIStorage.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "./ERC721.sol";
+import "./utils/AccessLock.sol";
+import "./interfaces/IWebtoon.sol";
 
-contract ProxyWebtoon is ERC1155, ERC1155URIStorage {
+contract ProxyWebtoon is ERC1155URIStorage {
     /// @notice The ERC721 contract that will be used to mint ERC1155 tokens.
-    ERC721Webtoon public immutable erc721Contract;
-
-    /// @notice Mapping of ERC721 token IDs to ERC1155 token IDs.
-    mapping(uint256 => uint256) private erc721ToERC1155;
-    /// @notice Mapping of ERC1155 token IDs to balances for each address.
-    mapping(uint256 => mapping(address => uint256)) public erc1155Balances;
+    IWebtoon public immutable erc721Contract;
 
     /// @notice Event emitted when an ERC1155 token is minted from an ERC721 token
-    event MintedFromERC721(
-        uint256 indexed erc721TokenId,
-        uint256 indexed erc1155TokenId,
-        address indexed account
-    );
+    event Minted(address indexed to, uint256 indexed tokenId);
 
     constructor(
         address _erc721Contract,
         string memory baseURI
     ) ERC1155(baseURI) {
-        erc721Contract = ERC721Webtoon(_erc721Contract);
+        erc721Contract = IWebtoon(_erc721Contract);
     }
 
     /**
