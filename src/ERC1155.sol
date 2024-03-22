@@ -24,22 +24,17 @@ contract ERC1155WebtoonHolder is ERC1155 , ERC1155URIStorage {
 
     /**
      * @dev Mints ERC1155 tokens based on the provided ERC721 token IDs.
-     * @param erc721TokenIds The IDs of the ERC721 tokens to mint ERC1155 tokens for.
+     * @param erc721TokenId The ID of the ERC721 tokens to mint ERC1155 token for.
      */
-    function mintFromERC721(uint256[] calldata erc721TokenIds) public {
-        for (uint256 i = 0; i < erc721TokenIds.length; i++) {
-            uint256 erc721TokenId = erc721TokenIds[i];
-            uint256 erc1155TokenId = _mapERC721ToERC1155TokenId(erc721TokenId);
+    function mintFromERC721(uint256 erc721TokenId, address buyer) public {
+    uint256 erc1155TokenId = _mapERC721ToERC1155TokenId(erc721TokenId);
+    string memory tokenURI = erc721Contract.tokenURI(erc721TokenId);
 
-            string memory tokenURI = erc721Contract.tokenURI(erc721TokenId);
-
-            _mint(msg.sender, erc1155TokenId, 1, "");                
-            _setURI(erc1155TokenId, tokenURI);
-            erc1155Balances[erc1155TokenId][msg.sender]++;
-            emit MintedFromERC721(erc721TokenId, erc1155TokenId, msg.sender);
-        }
+    _mint(buyer, erc1155TokenId, 1, "");
+    _setURI(erc1155TokenId, tokenURI);
+    erc1155Balances[erc1155TokenId][msg.sender]++;
+    emit MintedFromERC721(erc721TokenId, erc1155TokenId, buyer);
     }
-
     /**
      * @dev Returns the balance of a given ERC1155 token ID for a specific address.
      * @param account The address to check the balance for.

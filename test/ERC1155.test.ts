@@ -35,21 +35,20 @@ describe('ERC1155WebtoonHolder', () => {
           const erc721TokenId = 0; 
           const erc721TokenIds = [erc721TokenId];
     
-          await erc1155Contract.mintFromERC721(erc721TokenIds);
+          await erc1155Contract.mintFromERC721(erc721TokenIds,owner.address);
     
           // Assertions
           expect(await erc1155Contract.balanceOf(owner.address, erc721TokenId)).to.equal(1);
-          // ... more assertions
         });
         it('Handles invalid ERC721 token IDs', async () => { 
             const invalidTokenId = 123; // Assuming this ID doesn't exist 
-            await expect(erc1155Contract.mintFromERC721([invalidTokenId]))
+            await expect(erc1155Contract.mintFromERC721([invalidTokenId], owner.address))
                      .to.be.revertedWith('ERC721NonexistentToken'); 
           });
         it('Allows multiple mints from the same ERC721 token', async () => { 
             const erc721TokenId = 0; 
-            await erc1155Contract.mintFromERC721([erc721TokenId]); 
-            await erc1155Contract.mintFromERC721([erc721TokenId]); 
+            await erc1155Contract.mintFromERC721([erc721TokenId], owner.address); 
+            await erc1155Contract.mintFromERC721([erc721TokenId], owner.address); 
       
             expect(await erc1155Contract.balanceOf(owner.address, erc721TokenId)).to.equal(2);
           });
@@ -69,7 +68,7 @@ describe('ERC1155WebtoonHolder', () => {
           const erc721TokenId = 0;
           const expectedURI = await erc721Contract.tokenURI(erc721TokenId); 
     
-          await erc1155Contract.mintFromERC721([erc721TokenId]);
+          await erc1155Contract.mintFromERC721([erc721TokenId], owner.address);
           expect(await erc1155Contract.uri(erc721TokenId)).to.equal(expectedURI); 
         });
       });

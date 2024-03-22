@@ -4,6 +4,8 @@ pragma solidity ^0.8.20;
 
 import "./ERC721.sol";
 import "./ERC1155.sol";
+ import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
+
 
 
 contract WebtoonSale {
@@ -68,7 +70,7 @@ contract WebtoonSale {
      * @dev Facilitates the purchase of a listed ERC721 token.
      * @param tokenId The ID of the ERC721 token to purchase.
      */
-    function buyNFT(uint256 tokenId) public payable {
+    function buyNFT(uint256 tokenId, address buyer) public payable {
         Listing memory listing = listings[tokenId];
 
         if (msg.value < listing.price) {
@@ -86,12 +88,9 @@ contract WebtoonSale {
        (bool feeSuccess, ) = payable(feeRecipient).call{value: feeAmount}("");
        (bool sellerSuccess, ) = payable(listing.seller).call{value: sellerPayout}(""); 
        require(feeSuccess && sellerSuccess, "Payment transfers failed");
+       erc1155Contract.mintFromERC721(tokenId, buyer);
 
-
-        // Update ownership and mint ERC1155 tokens
-        erc1155Contract.mintFromERC721(new uint256[](tokenId)); 
-
-       emit Sold(tokenId, listing.seller, msg.sender, listing.price);
+       emit Sold(tokenId, listing.seller, buyer, listing.price);
     }
 
     /**
