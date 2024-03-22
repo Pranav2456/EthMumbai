@@ -23,6 +23,9 @@ contract WebtoonSale {
 
     event Listed(uint256 indexed tokenId, address indexed seller, uint256 price);
     event Sold(uint256 indexed tokenId, address indexed seller, address indexed buyer, uint256 price); 
+    event DeListed(uint256 indexed tokenId); 
+    event PriceUpdated(uint256 indexed tokenId, uint256 newPrice);
+
 
     error InsufficientFunds();
     error NFTnotListed();
@@ -72,18 +75,57 @@ contract WebtoonSale {
             revert InsufficientFunds();
         }
 
-        // Calculate marketplace fee
-        uint256 feeAmount = (listing.price * marketplaceFee) / 10000; 
-        uint256 sellerPayout = listing.price - feeAmount; // Amount due to the seller
+        if ((listings[tokenId].seller == address(0))) {
+            revert NFTnotListed();
+        }
 
-        // Transfer funds
-        (bool feeSuccess, ) = payable(feeRecipient).call{value: feeAmount}("");
-        (bool sellerSuccess, ) = payable(listing.seller).call{value: sellerPayout}("");
-        require(feeSuccess && sellerSuccess, "Payment transfers failed");
+        // Calculate marketplace fee
+       uint256 feeAmount = (listing.price * marketplaceFee) / 10000; 
+       uint256 sellerPayout = listing.price - feeAmount;
+
+       (bool feeSuccess, ) = payable(feeRecipient).call{value: feeAmount}("");
+       (bool sellerSuccess, ) = payable(listing.seller).call{value: sellerPayout}(""); 
+       require(feeSuccess && sellerSuccess, "Payment transfers failed");
+
 
         // Update ownership and mint ERC1155 tokens
         erc1155Contract.mintFromERC721(new uint256[](tokenId)); 
 
         emit Sold(tokenId, listing.seller, msg.sender, listing.price);
     }
+
+    /**
+     * @dev Allows the seller to de-list a previously listed ERC721 token.
+     * @param tokenId The ID of the ERC721 token to de-list.
+    */
+    function delistNFT(uint256 tokenId) public {
+    Listing memory listing = listings[tokenId];
+
+    if (listing.seller != msg.sender) {
+        revert NotOwner();
+    }
+
+    delete listings[tokenId]; 
+    emit DeListed(tokenId);
+    
+    }
+
+    /**
+    * @dev Allows the seller to update the price of a listed ERC721 token.
+    * @param tokenId The ID of the ERC721 token to update the price for.
+    * @param newPrice The new sale price.
+    */
+    function updatePrice(uint256 tokenId, uint256 newPrice) public {
+    Listing storage listing = listings[tokenId]; 
+
+    if (listing.seller != msg.sender) {
+        revert NotOwner();
+    }
+
+    listing.price = newPrice;
+    emit PriceUpdated(tokenId, newPrice); 
+    
+    }
+
+
 }
