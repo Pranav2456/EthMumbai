@@ -15,7 +15,7 @@ contract ProxyWebtoon is ERC1155URIStorage, AccessLock {
     /// @notice Event emitted when an ERC1155 token is minted from an ERC721 token
     event Minted(address indexed to, uint256 indexed tokenId);
 
-    constructor(address _webtoon) {
+    constructor(address _webtoon) ERC1155("") {
         webtoon = IWebtoon(_webtoon);
     }
 
@@ -25,8 +25,8 @@ contract ProxyWebtoon is ERC1155URIStorage, AccessLock {
     function mint(uint256 webtoonTokenId, address to) external onlyAdmin {
         string memory tokenURI = webtoon.tokenURI(webtoonTokenId);
 
-        _mint(buyer, erc1155TokenId, 1, "");
-        _setURI(erc1155TokenId, tokenURI);
+        _mint(to, webtoonTokenId, 1, "");
+        _setURI(webtoonTokenId, tokenURI);
         emit Minted(to, webtoonTokenId);
     }
 }
