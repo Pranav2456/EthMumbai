@@ -1,7 +1,7 @@
 {
-  "name": "pawfi-contracts",
+  "name": "webtoon-contracts",
   "version": "1.0.0",
-  "description": "Hardhat project for the development of Solidity Smart Contracts for PawFi",
+  "description": "Hardhat project for the development of Solidity Smart Contracts for webtoon-project",
   "main": "index.js",
   "scripts": {
     "test": "npx hardhat test",
@@ -10,7 +10,7 @@
     "deploy:sepolia": "npx hardhat run --network sepolia",
     "deploy:mainnet": "npx hardhat run --network mainnet"
   },
-  "author": "0xhohenheim <contact@0xhohenheim.com>",
+  "author": "Pranav Vinodan <pranavvinodan@gmail.com>",
   "license": "ISC",
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.2.3",
