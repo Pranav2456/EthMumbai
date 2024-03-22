@@ -91,7 +91,7 @@ contract WebtoonSale {
         // Update ownership and mint ERC1155 tokens
         erc1155Contract.mintFromERC721(new uint256[](tokenId)); 
 
-        emit Sold(tokenId, listing.seller, msg.sender, listing.price);
+       emit Sold(tokenId, listing.seller, msg.sender, listing.price);
     }
 
     /**
