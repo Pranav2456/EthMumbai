@@ -2,14 +2,13 @@
 pragma solidity 0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 
 error Unauthorized();
-error UserBlacklisted();
 
 /// @title Access Lock
 /// @notice Provides Admin Access Control
-contract AccessLock is Ownable, Pausable {
+contract AccessLock is Ownable(msg.sender), Pausable {
     mapping(address => bool) public isAdmin; // user => isAdmin? mapping
 
     /// @notice emitted when admin role is granted or revoked
