@@ -1,136 +1,132 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity 0.8.20;
 
-import "./ERC721.sol";
-import "./ERC1155.sol";
-import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "./utils/AccessLock.sol";
+import "./interfaces/IWebtoon.sol";
+import "./interfaces/IProxyWebtoon.sol";
 
-contract WebtoonSale {
-    ERC721Webtoon public immutable erc721Contract;
-    ERC1155WebtoonHolder public immutable erc1155Contract;
+error InsufficientFunds();
+error PaymentFailed();
+error NotListed();
+error NotOwner();
+error DuplicatePurchase();
+error InvalidAddress();
+
+/// @title Marketplace
+/// @author HeimLabs <contact@heimlabs.com>
+/// @notice List & Purchase Webtoons
+contract Marketplace is AccessLock, ReentrancyGuard {
+    /// @notice Original ERC721 Webtoon
+    IWebtoon public immutable webtoon;
+    /// @notice Proxy ERC1155 Webtoon
+    IProxyWebtoon public immutable proxyWebtoon;
 
     struct Listing {
-        uint256 tokenId;
-        address seller;
+        address beneficiary;
         uint256 price;
     }
 
+    /// @notice Mapping of tokenId to Listing
     mapping(uint256 => Listing) public listings;
 
-    uint256 public marketplaceFee;
-    address public feeRecipient;
-
+    /// @notice Event emitted when webtoon is listed
     event Listed(
         uint256 indexed tokenId,
-        address indexed seller,
+        address indexed beneficiary,
         uint256 price
     );
+    /// @notice Event emitted when webtoon is sold
     event Sold(
         uint256 indexed tokenId,
-        address indexed seller,
+        address indexed beneficiary,
         address indexed buyer,
         uint256 price
     );
-    event DeListed(uint256 indexed tokenId);
+    /// @notice Event emitted when webtoon is delisted
+    event Delisted(uint256 indexed tokenId);
+    /// @notice Event emitted when listing price is updated
     event PriceUpdated(uint256 indexed tokenId, uint256 newPrice);
 
-    error InsufficientFunds();
-    error NFTnotListed();
-    error NotOwner();
-    error NotApproved();
-
-    /**
-     * @dev Constructor to initialize the contract.
-     * @param _erc721Address The address of the ERC721 Webtoon contract.
-     * @param _erc1155Address The address of the ERC1155 Webtoon Holder contract.
-     * @param _marketplaceFee The marketplace fee (in basis points, e.g., 250 = 2.5%).
-     * @param _feeRecipient The address to receive marketplace fees.
-     */
-    constructor(
-        address _erc721Address,
-        address _erc1155Address,
-        uint256 _marketplaceFee,
-        address _feeRecipient
-    ) {
-        erc721Contract = ERC721Webtoon(_erc721Address);
-        erc1155Contract = ERC1155WebtoonHolder(_erc1155Address);
-        marketplaceFee = _marketplaceFee;
-        feeRecipient = _feeRecipient;
+    /// @dev Constructor to initialize the contract.
+    /// @param _webtoon The address of the ERC721 Webtoon contract.
+    /// @param _proxyWebtoon The address of the ERC1155 Webtoon Holder contract.
+    constructor(IWebtoon _webtoon, IProxyWebtoon _proxyWebtoon) {
+        webtoon = _webtoon;
+        proxyWebtoon = _proxyWebtoon;
     }
 
-    /**
-     * @dev Lists an ERC721 token for sale.
-     * @param tokenId The ID of the ERC721 token to list.
-     * @param price The sale price of the token.
-     */
-    function listNFT(uint256 tokenId, uint256 price) public {
-        if (erc721Contract.ownerOf(tokenId) != msg.sender) {
-            revert NotOwner();
-        }
+    /// @notice Lists an ERC721 Webtoon for sale
+    /// @param tokenId The ID of the ERC721 token to list
+    /// @param beneficiary Address of the sale beneficiary
+    /// @param price The sale price of the token
+    function list(
+        uint256 tokenId,
+        address beneficiary,
+        uint256 price
+    ) external {
+        if (beneficiary == address(0)) revert InvalidAddress();
+        if (
+            webtoon.ownerOf(tokenId) != msg.sender ||
+            !isAdmin[msg.sender] ||
+            owner() != msg.sender
+        ) revert Unauthorized();
 
-        if (erc721Contract.getApproved(tokenId) != address(this)) {
-            revert NotApproved();
-        }
-
-        listings[tokenId] = Listing(tokenId, msg.sender, price);
+        listings[tokenId] = Listing(beneficiary, price);
         emit Listed(tokenId, msg.sender, price);
     }
 
-    /**
-     * @dev Facilitates the purchase of a listed ERC721 token.
-     * @param tokenId The ID of the ERC721 token to purchase.
-     */
-    function buyNFT(uint256 tokenId, address buyer) public payable {
+    /// @dev Facilitates the purchase of a listed ERC721 token
+    /// @param tokenId The ID of the ERC721 token to purchase
+    function purchase(uint256 tokenId) external payable {
         Listing memory listing = listings[tokenId];
+        address buyer = msg.sender;
 
-        if (msg.value < listing.price) {
-            revert InsufficientFunds();
-        }
+        if (msg.value < listing.price) revert InsufficientFunds();
+        if (listing.beneficiary == address(0)) revert NotListed();
+        if (proxyWebtoon.balanceOf(buyer, tokenId) > 0)
+            revert DuplicatePurchase();
 
-        if ((listings[tokenId].seller == address(0))) {
-            revert NFTnotListed();
-        }
-
-        // Calculate marketplace fee
-        uint256 feeAmount = (listing.price * marketplaceFee) / 10000;
-        uint256 sellerPayout = listing.price - feeAmount;
-
-        (bool feeSuccess, ) = payable(feeRecipient).call{value: feeAmount}("");
-        (bool sellerSuccess, ) = payable(listing.seller).call{
-            value: sellerPayout
+        (bool sellerSuccess, ) = payable(listing.beneficiary).call{
+            value: listing.price
         }("");
-        require(feeSuccess && sellerSuccess, "Payment transfers failed");
-        erc1155Contract.mintFromERC721(tokenId, buyer);
+        if (!sellerSuccess) revert PaymentFailed();
 
-        emit Sold(tokenId, listing.seller, buyer, listing.price);
+        uint256 excess = msg.value - listing.price;
+        if (excess > 0) {
+            (bool refundSuccess, ) = payable(buyer).call{value: excess}("");
+            if (!refundSuccess) revert PaymentFailed();
+        }
+
+        proxyWebtoon.mint(tokenId, buyer);
+
+        emit Sold(tokenId, listing.beneficiary, buyer, listing.price);
     }
 
-    /**
-     * @dev Allows the seller to de-list a previously listed ERC721 token.
-     * @param tokenId The ID of the ERC721 token to de-list.
-     */
-    function delistNFT(uint256 tokenId) public {
-        Listing memory listing = listings[tokenId];
-
-        if (listing.seller != msg.sender) {
-            revert NotOwner();
-        }
+    /// @dev Allows the seller to de-list a previously listed ERC721 token.
+    /// @param tokenId The ID of the ERC721 token to de-list.
+    function delist(uint256 tokenId) external {
+        if (
+            webtoon.ownerOf(tokenId) != msg.sender ||
+            !isAdmin[msg.sender] ||
+            owner() != msg.sender
+        ) revert Unauthorized();
 
         delete listings[tokenId];
-        emit DeListed(tokenId);
+        emit Delisted(tokenId);
     }
 
-    /**
-     * @dev Allows the seller to update the price of a listed ERC721 token.
-     * @param tokenId The ID of the ERC721 token to update the price for.
-     * @param newPrice The new sale price.
-     */
+    /// @dev Allows the seller to update the price of a listed ERC721 token.
+    /// @param tokenId The ID of the ERC721 token to update the price for.
+    /// @param newPrice The new sale price.
     function updatePrice(uint256 tokenId, uint256 newPrice) public {
         Listing storage listing = listings[tokenId];
 
-        if (listing.seller != msg.sender) {
-            revert NotOwner();
-        }
+        if (
+            webtoon.ownerOf(tokenId) != msg.sender ||
+            !isAdmin[msg.sender] ||
+            owner() != msg.sender
+        ) revert Unauthorized();
 
         listing.price = newPrice;
         emit PriceUpdated(tokenId, newPrice);
