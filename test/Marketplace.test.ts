@@ -1,158 +1,154 @@
-import { expect } from "chai";
-import { ethers } from "hardhat";
-import { Marketplace, Marketplace__factory } from "../src/types";
+import { use, expect } from "chai";
+import { ethers, waffle } from "hardhat";
+import { ProxyWebtoon, ProxyWebtoon__factory, Webtoon, Webtoon__factory, Marketplace, Marketplace__factory } from "../src/types";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import { Webtoon, ProxyWebtoon, Webtoon__factory, ProxyWebtoon__factory } from "../src/types";
-import { BigNumber } from "ethers";
+import { setupUsers } from "./utils";
+use(waffle.solidity);
 
-describe('Marketplace', () => {
-    let erc721Contract: Webtoon;
-    let erc1155Contract: ProxyWebtoon;
-    let marketplaceContract: Marketplace;
-    let owner: SignerWithAddress, seller: SignerWithAddress, buyer: SignerWithAddress, otherAccount: SignerWithAddress;
+type User = { address: string } & { webtoon: Webtoon, proxyWebtoon: ProxyWebtoon, marketplace: Marketplace };
+
+describe('03-Marketplace', () => {
+    let users: User[], owner: User, _owner: SignerWithAddress, artist: User, admin: User;
+    let webtoon: Webtoon, proxyWebtoon: ProxyWebtoon, marketplace: Marketplace;
+
+    const tokenURI = "ipfs://some-uri-here";
 
     beforeEach(async () => {
-        // Get signers
-        [owner, seller, buyer, otherAccount] = await ethers.getSigners();
-        // Deploy ERC721 Contract
-        const ERC721Factory = await ethers.getContractFactory('Webtoon');
-        erc721Contract = await ERC721Factory.deploy(owner.address) as Webtoon;
-        await erc721Contract.deployed();
-        console.log("Webtoon deployed to:", erc721Contract.address);
+        const signers = await ethers.getSigners();
+        _owner = signers[0];
 
-        // Deploy ERC1155 Contract
-        const ERC1155Factory = await ethers.getContractFactory('ProxyWebtoon');
-        erc1155Contract = await ERC1155Factory.deploy(erc721Contract.address, 'https://example.com/webtoon.json') as ProxyWebtoon;
-        await erc1155Contract.deployed();
-        console.log("ProxyWebtoon deployed to:", erc1155Contract.address);
+        // Webtoon
+        const webtoonFactory = await ethers.getContractFactory("Webtoon") as Webtoon__factory;
+        webtoon = await (await webtoonFactory.deploy()).deployed() as Webtoon;
 
-        // Deploy the Marketplace Contract
-        const MarketplaceFactory = await ethers.getContractFactory('Marketplace');
-        marketplaceContract = await MarketplaceFactory.deploy(
-            erc721Contract.address,
-            erc1155Contract.address,
-            250, // 2.5% fee
-            owner.address // Fee recipient
-        ) as Marketplace;
-        await marketplaceContract.deployed();
-        console.log("Marketplace deployed to:", marketplaceContract.address);
+        // Proxy Webtoon
+        const proxyWebtoonFactory = await ethers.getContractFactory("ProxyWebtoon") as ProxyWebtoon__factory;
+        proxyWebtoon = await (await proxyWebtoonFactory.deploy()).deployed() as ProxyWebtoon;
 
-        // Mint an initial NFT for testing
-        await erc721Contract.connect(seller).mint(seller.address, "some-uri");
+        // Marketplace
+        const marketplaceFactory = await ethers.getContractFactory("Marketplace") as Marketplace__factory;
+        marketplace = await (await marketplaceFactory.deploy(webtoon.address, proxyWebtoon.address)).deployed() as Marketplace;
+
+        // User Setup
+        const addresses = await Promise.all(signers.map(async signer => signer.getAddress()));
+        users = await setupUsers(addresses, { webtoon, proxyWebtoon, marketplace });
+        owner = users[0];
+        admin = users[1];
+        artist = users[2];
+        users.splice(0, 3);
+
+        // Owner Actions
+        await owner.webtoon.setAdmin(admin.address, true);
+        await owner.webtoon.setAdmin(artist.address, true);
+        await owner.proxyWebtoon.setAdmin(admin.address, true);
+        await owner.proxyWebtoon.setAdmin(marketplace.address, true);
+        await owner.marketplace.setAdmin(admin.address, true);
     });
 
-    describe('list', () => {
-        it('Should list an NFT for sale', async () => {
-            const tokenId = 0; // Assuming NFT with ID 0 exists
-            const listingPrice = ethers.utils.parseEther('1'); // 1 ETH for example
-
-            // Approve marketplace as operator of the NFT (if not already done in beforeEach)
-            await erc721Contract.connect(seller).approve(marketplaceContract.address, tokenId);
-
-            // Call list
-            await marketplaceContract.connect(seller).list(tokenId, seller.address, listingPrice);
-
-            // Assertions
-            const listing = await marketplaceContract.listings(tokenId);
-            expect(listing.beneficiary).to.equal(seller.address);
-            expect(listing.price).to.equal(listingPrice);
-
-            // Event emission check
-            await expect(marketplaceContract.connect(seller).list(tokenId, seller.address, listingPrice))
-                .to.emit(marketplaceContract, 'Listed')
-                .withArgs(tokenId, seller.address, listingPrice);
+    describe("Deployment Tests", async () => {
+        it("should have correct webtoon contract", async () => {
+            const webtoonContract = await marketplace.webtoon();
+            expect(webtoonContract).to.be.equal(webtoon.address);
         });
-
-        it('Should revert if not the NFT owner', async () => {
-            const tokenId = 0;
-            const signers = await ethers.getSigners();
-            const buyer = signers[2];
-            const listingPrice = ethers.utils.parseEther('1');
-
-            await expect(marketplaceContract.connect(buyer).list(tokenId, seller.address, listingPrice))
-                .to.be.revertedWith('NotOwner');
-        });
-
-        it('Should revert if the marketplace is not approved', async () => {
-            const tokenId = 0;
-            const listingPrice = ethers.utils.parseEther('1');
-
-            // Revoke any existing approval if needed
-            await erc721Contract.connect(seller).approve(ethers.constants.AddressZero, tokenId);
-
-            await expect(marketplaceContract.connect(seller).list(tokenId, seller.address, listingPrice))
-                .to.be.revertedWith('NotApproved');
+        it("should have correct proxy webtoon contract", async () => {
+            const proxyWebtoonContract = await marketplace.proxyWebtoon();
+            expect(proxyWebtoonContract).to.be.equal(proxyWebtoon.address);
         });
     });
 
-    describe('purchase', () => {
-        it('Should successfully facilitate an NFT purchase', async () => {
-            const signers = await ethers.getSigners();
-            const buyer = signers[2];
-            const tokenId = 0;
-            await erc721Contract.connect(seller).approve(marketplaceContract.address, tokenId);
-            const listingPrice = ethers.utils.parseEther('1'); // 1 ETH for example
-            const feeRecipient = owner;
-
-
-            // List the NFT
-            await marketplaceContract.connect(seller).list(tokenId, seller.address, listingPrice);
-
-            // Calculate expected fees and payout
-            const marketplaceFee = 250; // 2.5%
-            const feeAmount = listingPrice.mul(marketplaceFee).div(10000);
-            const expectedSellerPayout = listingPrice.sub(feeAmount);
-
-            // Initial Balances
-            const initialFeeRecipientBalance = await ethers.provider.getBalance(feeRecipient.address);
-            const initialSellerBalance = await ethers.provider.getBalance(seller.address);
-
-            // Execute the purchase transaction
-            const tx = await marketplaceContract.connect(buyer).purchase(tokenId, { value: listingPrice });
-            await tx.wait();
-
-
-            // Assertions
-            expect(await erc1155Contract.balanceOf(marketplaceContract.address, tokenId)).to.equal(1);
-            expect(await ethers.provider.getBalance(feeRecipient.address)).to.equal(initialFeeRecipientBalance.add(feeAmount));
-            expect(await ethers.provider.getBalance(seller.address)).to.equal(initialSellerBalance.add(expectedSellerPayout));
-            await expect(tx).to.emit(marketplaceContract, 'Sold')
-                .withArgs(tokenId, seller.address, buyer.address, listingPrice);
+    describe("Access Tests", async () => {
+        describe("Admin", async () => {
+            it("owner should be able to set admin", async () => {
+                const newAdmin = users[0];
+                await expect(owner.marketplace.setAdmin(newAdmin.address, true))
+                    .to.emit(marketplace, "AdminSet")
+                    .withArgs(newAdmin.address, true);
+                expect(await marketplace.isAdmin(newAdmin.address)).to.be.equal(true);
+                await expect(owner.marketplace.setAdmin(newAdmin.address, false))
+                    .to.emit(marketplace, "AdminSet")
+                    .withArgs(newAdmin.address, false);
+                expect(await marketplace.isAdmin(newAdmin.address)).to.be.equal(false);
+            });
+            it("non-owner should not be able to set admin", async () => {
+                const user = users[0];
+                await expect(user.marketplace.setAdmin(user.address, true))
+                    .to.be.revertedWith("OwnableUnauthorizedAccount");
+            });
+            it("admin should not be able to set admin", async () => {
+                const user = users[0];
+                await expect(admin.marketplace.setAdmin(user.address, true))
+                    .to.be.revertedWith("OwnableUnauthorizedAccount");
+            });
         });
-
-        it('Should revert if insufficient funds are provided', async () => {
-            const signers = await ethers.getSigners();
-            const buyer = signers[2];
-            const tokenId = 0;
-            await erc721Contract.connect(seller).approve(marketplaceContract.address, tokenId);
-            const listingPrice = ethers.utils.parseEther('1');
-
-            // List the NFT
-            await marketplaceContract.connect(seller).list(tokenId, seller.address, listingPrice);
-
-            const tx = await expect(marketplaceContract.connect(buyer).purchase(tokenId, { value: listingPrice.sub(1) }))
-                .to.be.revertedWith('InsufficientFunds');
+        describe('Pausable', async () => {
+            it('owner should be able to pause/unpause', async () => {
+                await expect(owner.marketplace.pause())
+                    .to.be.emit(marketplace, 'Paused');
+                expect(await marketplace.paused()).to.be.true;
+                await expect(owner.marketplace.unpause())
+                    .to.be.emit(marketplace, 'Unpaused');
+                expect(await marketplace.paused()).to.be.false;
+            });
+            it('admin should be able to pause/unpause', async () => {
+                await expect(admin.marketplace.pause())
+                    .to.be.emit(marketplace, 'Paused');
+                expect(await marketplace.paused()).to.be.true;
+                await expect(admin.marketplace.unpause())
+                    .to.be.emit(marketplace, 'Unpaused');
+                expect(await marketplace.paused()).to.be.false;
+            });
+            it('user should not be able to pause/unpause', async () => {
+                const user = users[0];
+                await expect(user.marketplace.pause())
+                    .to.be.revertedWith('Unauthorized');
+                expect(await marketplace.paused()).to.be.false;
+                await expect(user.marketplace.unpause())
+                    .to.be.revertedWith('Unauthorized');
+                expect(await marketplace.paused()).to.be.false;
+            });
         });
-
-        it('Should revert if the NFT is not listed', async () => {
-            const signers = await ethers.getSigners();
-            const buyer = signers[2];
-            const tokenId = 0;
-            const listingPrice = ethers.utils.parseEther('1');
-
-            await expect(marketplaceContract.connect(buyer).purchase(tokenId, { value: listingPrice }))
-                .to.be.revertedWith('NFTnotListed');
-        });
-
-        it('Should calculate marketplace fees and pay the seller correctly', async () => {
-        });
-
-        it('Should revert if fee transfer fails', async () => {
-
-        });
-
-        it('Should revert if seller transfer fails', async () => {
-        });
-
     });
+
+    describe("Listing Tests", async () => {
+        beforeEach(async () => {
+            await artist.webtoon.mint(artist.address, tokenURI);
+        });
+        it("owner should be able to list", async () => {
+            const price = ethers.utils.parseEther("1");
+            const tokenId = 1;
+            await expect(owner.marketplace.list(tokenId, artist.address, price))
+                .to.emit(marketplace, "Listed")
+                .withArgs(tokenId, artist.address, price);
+            const listing = await marketplace.listings(tokenId);
+            expect(listing.beneficiary).to.be.equal(artist.address);
+            expect(listing.price).to.be.equal(price);
+        });
+        it("admin should be able to list", async () => {
+            const price = ethers.utils.parseEther("1");
+            const tokenId = 1;
+            await expect(admin.marketplace.list(tokenId, artist.address, price))
+                .to.emit(marketplace, "Listed")
+                .withArgs(tokenId, artist.address, price);
+            const listing = await marketplace.listings(tokenId);
+            expect(listing.beneficiary).to.be.equal(artist.address);
+            expect(listing.price).to.be.equal(price);
+        });
+        it("artist should be able to list", async () => {
+            const price = ethers.utils.parseEther("1");
+            const tokenId = 1;
+            await expect(artist.marketplace.list(tokenId, artist.address, price))
+                .to.emit(marketplace, "Listed")
+                .withArgs(tokenId, artist.address, price);
+            const listing = await marketplace.listings(tokenId);
+            expect(listing.beneficiary).to.be.equal(artist.address);
+            expect(listing.price).to.be.equal(price);
+        });
+        it("user should not be able to list", async () => {
+            const price = ethers.utils.parseEther("1");
+            const tokenId = 1;
+            const user = users[0];
+            await expect(user.marketplace.list(tokenId, artist.address, price))
+                .to.be.revertedWith("Unauthorized")
+        });
+    })
 });
