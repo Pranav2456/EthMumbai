@@ -8,8 +8,8 @@ import "./utils/AccessLock.sol";
 /// @author HeimLabs <contact@heimlabs.com>
 /// @notice ERC721 NFT Contract for original Webtoons
 contract Webtoon is ERC721URIStorage, AccessLock {
-    /// @notice The next token ID
-    uint256 private _nextTokenId;
+    /// @notice Track minted tokens
+    uint256 private _tokenCounter;
 
     /// @notice Event emitted when a new webtoon is minted
     event Minted(address indexed to, uint256 indexed tokenId, string tokenURI);
@@ -20,8 +20,8 @@ contract Webtoon is ERC721URIStorage, AccessLock {
     function mint(
         address to,
         string memory tokenURI
-        uint256 tokenId = _nextTokenId++;
     ) public onlyAdmin whenNotPaused returns (uint256) {
+        uint256 tokenId = ++_tokenCounter;
         _safeMint(to, tokenId);
         _setTokenURI(tokenId, tokenURI);
         emit Minted(to, tokenId, tokenURI);
