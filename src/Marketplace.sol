@@ -6,12 +6,13 @@ import "./utils/AccessLock.sol";
 import "./interfaces/IWebtoon.sol";
 import "./interfaces/IProxyWebtoon.sol";
 
-error InsufficientFunds();
+error InsufficientValue();
 error PaymentFailed();
 error NotListed();
 error NotOwner();
 error DuplicatePurchase();
 error InvalidAddress();
+error InvalidToken();
 
 /// @title Marketplace
 /// @author HeimLabs <contact@heimlabs.com>
@@ -64,25 +65,23 @@ contract Marketplace is AccessLock, ReentrancyGuard {
         uint256 tokenId,
         address beneficiary,
         uint256 price
-    ) external {
+    ) external onlyManager(tokenId) {
         if (beneficiary == address(0)) revert InvalidAddress();
-        if (
-            webtoon.ownerOf(tokenId) != msg.sender ||
-            !isAdmin[msg.sender] ||
-            owner() != msg.sender
-        ) revert Unauthorized();
+        if (webtoon.ownerOf(tokenId) == address(0)) revert InvalidToken();
 
         listings[tokenId] = Listing(beneficiary, price);
-        emit Listed(tokenId, msg.sender, price);
+        emit Listed(tokenId, beneficiary, price);
     }
 
     /// @dev Facilitates the purchase of a listed ERC721 token
     /// @param tokenId The ID of the ERC721 token to purchase
-    function purchase(uint256 tokenId) external payable {
+    function purchase(
+        uint256 tokenId
+    ) external payable whenNotPaused nonReentrant {
         Listing memory listing = listings[tokenId];
         address buyer = msg.sender;
 
-        if (msg.value < listing.price) revert InsufficientFunds();
+        if (msg.value < listing.price) revert InsufficientValue();
         if (listing.beneficiary == address(0)) revert NotListed();
         if (proxyWebtoon.balanceOf(buyer, tokenId) > 0)
             revert DuplicatePurchase();
@@ -98,20 +97,14 @@ contract Marketplace is AccessLock, ReentrancyGuard {
             if (!refundSuccess) revert PaymentFailed();
         }
 
-        proxyWebtoon.mint(tokenId, buyer);
+        proxyWebtoon.mint(buyer, tokenId, webtoon.tokenURI(tokenId));
 
         emit Sold(tokenId, listing.beneficiary, buyer, listing.price);
     }
 
     /// @dev Allows the seller to de-list a previously listed ERC721 token.
     /// @param tokenId The ID of the ERC721 token to de-list.
-    function delist(uint256 tokenId) external {
-        if (
-            webtoon.ownerOf(tokenId) != msg.sender ||
-            !isAdmin[msg.sender] ||
-            owner() != msg.sender
-        ) revert Unauthorized();
-
+    function delist(uint256 tokenId) external onlyManager(tokenId) {
         delete listings[tokenId];
         emit Delisted(tokenId);
     }
@@ -119,16 +112,23 @@ contract Marketplace is AccessLock, ReentrancyGuard {
     /// @dev Allows the seller to update the price of a listed ERC721 token.
     /// @param tokenId The ID of the ERC721 token to update the price for.
     /// @param newPrice The new sale price.
-    function updatePrice(uint256 tokenId, uint256 newPrice) public {
+    function updatePrice(
+        uint256 tokenId,
+        uint256 newPrice
+    ) external onlyManager(tokenId) {
         Listing storage listing = listings[tokenId];
-
-        if (
-            webtoon.ownerOf(tokenId) != msg.sender ||
-            !isAdmin[msg.sender] ||
-            owner() != msg.sender
-        ) revert Unauthorized();
 
         listing.price = newPrice;
         emit PriceUpdated(tokenId, newPrice);
+    }
+
+    /// @notice revert if caller is not owner, admin or artist
+    modifier onlyManager(uint256 tokenId) {
+        if (
+            webtoon.ownerOf(tokenId) != msg.sender &&
+            !isAdmin[msg.sender] &&
+            owner() != msg.sender
+        ) revert Unauthorized();
+        _;
     }
 }

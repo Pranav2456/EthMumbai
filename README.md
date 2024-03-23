@@ -44,9 +44,11 @@ yarn deploy:sepolia <path-to-script>
 ```
 Examples:
 ```sh
-yarn deploy:sepolia ./scripts/01_deploy_token.ts
+yarn deploy:sepolia ./scripts/01_deploy_Webtoon.ts
 
-yarn deploy:sepolia ./scripts/02_deploy_staking.ts
+yarn deploy:sepolia ./scripts/02_deploy_ProxyWebtoon.ts
+
+yarn deploy:sepolia ./scripts/03_deploy_Marketplace.ts
 ```
 
 ### Deploy to Mainnet

@@ -52,7 +52,10 @@ const config: HardhatUserConfig = {
             mainnet: process.env.ETH_EXPLORER_API_KEY as string,
         }
     },
-
+    gasReporter: {
+        currency: 'USD',
+        coinmarketcap: process.env.CMC_API_KEY as string
+    }
 }
 
 export default config;
