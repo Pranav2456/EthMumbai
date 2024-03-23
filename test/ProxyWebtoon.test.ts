@@ -88,7 +88,6 @@ describe('02-ProxyWebtoon', () => {
         });
     });
 
-
     describe("Minting Tests", async () => {
         it("owner should be able to mint", async () => {
             const user = users[0];
