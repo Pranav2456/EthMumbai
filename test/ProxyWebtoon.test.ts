@@ -131,6 +131,35 @@ describe('02-ProxyWebtoon', () => {
             await expect(admin.proxyWebtoon.mint(user.address, tokenId, uri))
                 .to.be.revertedWith("EnforcedPause");
         });
+        it("should be able to mint multiple for same tokenId", async () => {
+            const user = users[0];
+            const uri = "ipfs://some-uri-here";
+            const tokenId = 1;
+
+            await expect(owner.proxyWebtoon.mint(user.address, tokenId, uri))
+                .to.emit(proxyWebtoon, "Minted")
+                .withArgs(user.address, 1, uri)
+                .to.emit(proxyWebtoon, "TransferSingle")
+                .withArgs(owner.address, ethers.constants.AddressZero, user.address, tokenId, 1);
+            expect(await proxyWebtoon.balanceOf(user.address, tokenId)).to.be.equal(1);
+            expect(await proxyWebtoon.uri(tokenId)).to.be.equal(uri);
+
+            await expect(owner.proxyWebtoon.mint(user.address, tokenId, uri))
+                .to.emit(proxyWebtoon, "Minted")
+                .withArgs(user.address, 1, uri)
+                .to.emit(proxyWebtoon, "TransferSingle")
+                .withArgs(owner.address, ethers.constants.AddressZero, user.address, tokenId, 1);
+            expect(await proxyWebtoon.balanceOf(user.address, tokenId)).to.be.equal(2);
+            expect(await proxyWebtoon.uri(tokenId)).to.be.equal(uri);
+
+            await expect(owner.proxyWebtoon.mint(user.address, tokenId, uri))
+                .to.emit(proxyWebtoon, "Minted")
+                .withArgs(user.address, 1, uri)
+                .to.emit(proxyWebtoon, "TransferSingle")
+                .withArgs(owner.address, ethers.constants.AddressZero, user.address, tokenId, 1);
+            expect(await proxyWebtoon.balanceOf(user.address, tokenId)).to.be.equal(3);
+            expect(await proxyWebtoon.uri(tokenId)).to.be.equal(uri);
+        });
     });
 
     describe("Approval Tests", async () => {
