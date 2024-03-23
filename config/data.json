@@ -1,13 +1,35 @@
 {
-  "sepolia": {
-    "ERC721Webtoon": {
-      "address": "0x23Efd6b4ebCF50e549f7C0e920d8A73705aAF059",
-      "initialOwner": "0x23Efd6b4ebCF50e549f7C0e920d8A73705aAF059"
+  "hardhat": {
+    "Webtoon": {
+      "address": ""
     },
-    "ERC1155WebtoonHolder": {
-      "address": "0x974f06A2a4f810aEf3F49e0f7a2bF33Ea1339E60",
-      "erc721ContractAddress": "0x23Efd6b4ebCF50e549f7C0e920d8A73705aAF059",
-      "baseURI": "ipfs://ipfs.io/webtoon-metadata/"
+    "ProxyWebtoon": {
+      "address": ""
+    },
+    "Marketplace": {
+      "address": ""
+    }
+  },
+  "sepolia": {
+    "Webtoon": {
+      "address": ""
+    },
+    "ProxyWebtoon": {
+      "address": ""
+    },
+    "Marketplace": {
+      "address": ""
+    }
+  },
+  "mainnet": {
+    "Webtoon": {
+      "address": ""
+    },
+    "ProxyWebtoon": {
+      "address": ""
+    },
+    "Marketplace": {
+      "address": ""
     }
   }
 }
