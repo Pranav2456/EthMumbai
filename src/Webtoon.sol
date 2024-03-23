@@ -17,6 +17,9 @@ contract Webtoon is ERC721URIStorage, AccessLock {
     constructor() ERC721("Webtoon", "TOON") {}
 
     /// @notice Mints a new webtoon NFT
+    /// @param to Recipient of the minted NFT
+    /// @param tokenURI IPFS Metadata URI of the NFT
+    /// @return tokenId
     function mint(
         address to,
         string memory tokenURI
