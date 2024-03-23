@@ -12,6 +12,7 @@ error NotListed();
 error NotOwner();
 error DuplicatePurchase();
 error InvalidAddress();
+error InvalidToken();
 
 /// @title Marketplace
 /// @author HeimLabs <contact@heimlabs.com>
@@ -67,13 +68,14 @@ contract Marketplace is AccessLock, ReentrancyGuard {
     ) external {
         if (beneficiary == address(0)) revert InvalidAddress();
         if (
-            webtoon.ownerOf(tokenId) != msg.sender ||
-            !isAdmin[msg.sender] ||
+            webtoon.ownerOf(tokenId) != msg.sender &&
+            !isAdmin[msg.sender] &&
             owner() != msg.sender
         ) revert Unauthorized();
+        if (webtoon.ownerOf(tokenId) == address(0)) revert InvalidToken();
 
         listings[tokenId] = Listing(beneficiary, price);
-        emit Listed(tokenId, msg.sender, price);
+        emit Listed(tokenId, beneficiary, price);
     }
 
     /// @dev Facilitates the purchase of a listed ERC721 token
@@ -107,8 +109,8 @@ contract Marketplace is AccessLock, ReentrancyGuard {
     /// @param tokenId The ID of the ERC721 token to de-list.
     function delist(uint256 tokenId) external {
         if (
-            webtoon.ownerOf(tokenId) != msg.sender ||
-            !isAdmin[msg.sender] ||
+            webtoon.ownerOf(tokenId) != msg.sender &&
+            !isAdmin[msg.sender] &&
             owner() != msg.sender
         ) revert Unauthorized();
 
@@ -123,8 +125,8 @@ contract Marketplace is AccessLock, ReentrancyGuard {
         Listing storage listing = listings[tokenId];
 
         if (
-            webtoon.ownerOf(tokenId) != msg.sender ||
-            !isAdmin[msg.sender] ||
+            webtoon.ownerOf(tokenId) != msg.sender &&
+            !isAdmin[msg.sender] &&
             owner() != msg.sender
         ) revert Unauthorized();
 
