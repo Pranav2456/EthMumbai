@@ -9,24 +9,22 @@ import "./interfaces/IWebtoon.sol";
 /// @author HeimLabs <contact@heimlabs.com>
 /// @notice ERC1155 Multi Token minted as a proxy to the original Webtoon
 contract ProxyWebtoon is ERC1155URIStorage, AccessLock {
-    /// @notice The ERC721 contract that will be used to mint ERC1155 tokens
-    IWebtoon public immutable webtoon;
-
     /// @notice Event emitted when an ERC1155 token is minted from an ERC721 token
     event Minted(address indexed to, uint256 indexed tokenId);
 
-    constructor(address _webtoon) ERC1155("") {
-        webtoon = IWebtoon(_webtoon);
-    }
+    constructor() ERC1155("") {}
 
-    /// @dev Mints single ERC1155 proxy for provided ERC721 token ID
-    /// @param webtoonTokenId The ID of the ERC721 tokens to mint ERC1155 token for
+    /// @dev Mints single ERC1155
     /// @param to Address of recipient
-    function mint(uint256 webtoonTokenId, address to) external onlyAdmin {
-        string memory tokenURI = webtoon.tokenURI(webtoonTokenId);
-
-        _mint(to, webtoonTokenId, 1, "");
-        _setURI(webtoonTokenId, tokenURI);
-        emit Minted(to, webtoonTokenId);
+    /// @param tokenId ID of the ERC721 tokens to mint ERC1155 token for
+    /// @param tokenURI IPFS Metadata URI of ERC721 token
+    function mint(
+        address to,
+        uint256 tokenId,
+        string calldata tokenURI
+    ) external onlyAdmin {
+        _mint(to, tokenId, 1, "");
+        _setURI(tokenId, tokenURI);
+        emit Minted(to, tokenId);
     }
 }
