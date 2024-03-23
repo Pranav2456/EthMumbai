@@ -20,8 +20,8 @@ contract Webtoon is ERC721URIStorage, AccessLock {
     function mint(
         address to,
         string memory tokenURI
-    ) public onlyAdmin returns (uint256) {
         uint256 tokenId = _nextTokenId++;
+    ) public onlyAdmin whenNotPaused returns (uint256) {
         _safeMint(to, tokenId);
         _setTokenURI(tokenId, tokenURI);
         emit Minted(to, tokenId, tokenURI);
