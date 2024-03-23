@@ -150,5 +150,31 @@ describe('03-Marketplace', () => {
             await expect(user.marketplace.list(tokenId, artist.address, price))
                 .to.be.revertedWith("Unauthorized")
         });
-    })
+        it("should not be able to list with invalid beneficiary", async () => {
+            const price = ethers.utils.parseEther("1");
+            const tokenId = 1;
+            const user = users[0];
+            await expect(user.marketplace.list(tokenId, ethers.constants.AddressZero, price))
+                .to.be.revertedWith("InvalidAddress")
+        });
+        it("should not be able to list invalid token", async () => {
+            const price = ethers.utils.parseEther("1");
+            const tokenId = 2;
+            const user = users[0];
+            await expect(user.marketplace.list(tokenId, artist.address, price))
+                .to.be.revertedWith("ERC721NonexistentToken")
+        });
+    });
+
+    describe("Price Update Tests", async () => {
+
+    });
+
+    describe("Purchase Tests", async () => {
+
+    });
+
+    describe("Delisting Tests", async () => {
+
+    });
 });
