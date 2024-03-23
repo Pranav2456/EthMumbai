@@ -6,7 +6,7 @@ import "./utils/AccessLock.sol";
 import "./interfaces/IWebtoon.sol";
 import "./interfaces/IProxyWebtoon.sol";
 
-error InsufficientFunds();
+error InsufficientValue();
 error PaymentFailed();
 error NotListed();
 error NotOwner();
@@ -84,7 +84,7 @@ contract Marketplace is AccessLock, ReentrancyGuard {
         Listing memory listing = listings[tokenId];
         address buyer = msg.sender;
 
-        if (msg.value < listing.price) revert InsufficientFunds();
+        if (msg.value < listing.price) revert InsufficientValue();
         if (listing.beneficiary == address(0)) revert NotListed();
         if (proxyWebtoon.balanceOf(buyer, tokenId) > 0)
             revert DuplicatePurchase();
