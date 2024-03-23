@@ -153,8 +153,7 @@ describe('03-Marketplace', () => {
         it("should not be able to list with invalid beneficiary", async () => {
             const price = ethers.utils.parseEther("1");
             const tokenId = 1;
-            const user = users[0];
-            await expect(user.marketplace.list(tokenId, ethers.constants.AddressZero, price))
+            await expect(owner.marketplace.list(tokenId, ethers.constants.AddressZero, price))
                 .to.be.revertedWith("InvalidAddress")
         });
         it("should not be able to list invalid token", async () => {
@@ -167,14 +166,176 @@ describe('03-Marketplace', () => {
     });
 
     describe("Price Update Tests", async () => {
-
+        beforeEach(async () => {
+            await artist.webtoon.mint(artist.address, tokenURI);
+            await artist.marketplace.list(1, artist.address, ethers.utils.parseEther("1"));
+        });
+        it("owner should be able to update price", async () => {
+            const newPrice = ethers.utils.parseEther("2");
+            const tokenId = 1;
+            await expect(owner.marketplace.updatePrice(tokenId, newPrice))
+                .to.emit(marketplace, "PriceUpdated")
+                .withArgs(tokenId, newPrice);
+        });
+        it("admin should be able to update price", async () => {
+            const newPrice = ethers.utils.parseEther("2");
+            const tokenId = 1;
+            await expect(admin.marketplace.updatePrice(tokenId, newPrice))
+                .to.emit(marketplace, "PriceUpdated")
+                .withArgs(tokenId, newPrice);
+        });
+        it("artist should be able to update price", async () => {
+            const newPrice = ethers.utils.parseEther("2");
+            const tokenId = 1;
+            await expect(artist.marketplace.updatePrice(tokenId, newPrice))
+                .to.emit(marketplace, "PriceUpdated")
+                .withArgs(tokenId, newPrice);
+        });
+        it("user should not be able to update price", async () => {
+            const newPrice = ethers.utils.parseEther("2");
+            const tokenId = 1;
+            const user = users[0];
+            await expect(user.marketplace.updatePrice(tokenId, newPrice))
+                .to.be.revertedWith("Unauthorized");
+        });
     });
 
     describe("Purchase Tests", async () => {
+        beforeEach(async () => {
+            await artist.webtoon.mint(artist.address, tokenURI);
+            await artist.marketplace.list(1, artist.address, ethers.utils.parseEther("1"));
+        });
+        it("should be able to purchase with sufficient value", async () => {
+            const buyer = users[0];
+            const tokenId = 1;
+            const listing = await marketplace.listings(tokenId);
 
+            const buyerPrevBalance = await ethers.provider.getBalance(buyer.address);
+            const artistPrevBalance = await ethers.provider.getBalance(artist.address);
+
+            const tx = await buyer.marketplace.purchase(tokenId, { value: listing.price });
+
+            await expect(tx)
+                .to.emit(marketplace, "Sold")
+                .withArgs(tokenId, listing.beneficiary, buyer.address, listing.price);
+
+            const txn = await tx.wait();
+            const gas = (txn.gasUsed.mul(txn.effectiveGasPrice));
+
+            const buyerNextBalance = await ethers.provider.getBalance(buyer.address);
+            const artistNextBalance = await ethers.provider.getBalance(artist.address);
+
+            expect(buyerNextBalance).to.be.equal((buyerPrevBalance.sub(gas)).sub(listing.price));
+            expect(artistNextBalance).to.be.equal(artistPrevBalance.add(listing.price));
+            expect(await proxyWebtoon.balanceOf(buyer.address, tokenId)).to.be.equal(1);
+        });
+        it("should be able to purchase with extra value", async () => {
+            const buyer = users[0];
+            const tokenId = 1;
+            const listing = await marketplace.listings(tokenId);
+            const extraAmount = ethers.utils.parseEther("1");
+
+            const buyerPrevBalance = await ethers.provider.getBalance(buyer.address);
+            const artistPrevBalance = await ethers.provider.getBalance(artist.address);
+
+            const tx = await buyer.marketplace.purchase(tokenId, { value: listing.price.add(extraAmount) });
+
+            await expect(tx)
+                .to.emit(marketplace, "Sold")
+                .withArgs(tokenId, listing.beneficiary, buyer.address, listing.price);
+
+            const txn = await tx.wait();
+            const gas = (txn.gasUsed.mul(txn.effectiveGasPrice));
+
+            const buyerNextBalance = await ethers.provider.getBalance(buyer.address);
+            const artistNextBalance = await ethers.provider.getBalance(artist.address);
+
+            expect(buyerNextBalance).to.be.equal((buyerPrevBalance.sub(gas)).sub(listing.price));
+            expect(artistNextBalance).to.be.equal(artistPrevBalance.add(listing.price));
+            expect(await proxyWebtoon.balanceOf(buyer.address, tokenId)).to.be.equal(1);
+        });
+        it("should not be able to purchase with insufficient value", async () => {
+            const buyer = users[0];
+            const tokenId = 1;
+            const listing = await marketplace.listings(tokenId);
+
+            await expect(buyer.marketplace.purchase(tokenId, { value: listing.price.sub(1) }))
+                .to.be.revertedWith("InsufficientValue");
+        });
+        it("should not be able to purchase when paused", async () => {
+            await owner.marketplace.pause();
+
+            const buyer = users[0];
+            const tokenId = 1;
+            const listing = await marketplace.listings(tokenId);
+
+            await expect(buyer.marketplace.purchase(tokenId, { value: listing.price }))
+                .to.be.revertedWith("EnforcedPause");
+        });
+        it("should not be able to purchase when not listed", async () => {
+            const buyer = users[0];
+            const tokenId = 2;
+            const listing = await marketplace.listings(tokenId);
+
+            await expect(buyer.marketplace.purchase(tokenId, { value: listing.price }))
+                .to.be.revertedWith("NotListed");
+        });
+        it("should not be able to purchase multiple", async () => {
+            const buyer = users[0];
+            const tokenId = 1;
+            const listing = await marketplace.listings(tokenId);
+
+            await buyer.marketplace.purchase(tokenId, { value: listing.price });
+
+            await expect(buyer.marketplace.purchase(tokenId, { value: listing.price }))
+                .to.be.revertedWith("DuplicatePurchase");
+        });
     });
 
     describe("Delisting Tests", async () => {
+        beforeEach(async () => {
+            await artist.webtoon.mint(artist.address, tokenURI);
+            await artist.marketplace.list(1, artist.address, ethers.utils.parseEther("1"));
+        });
+        it("owner should be able to delist", async () => {
+            const tokenId = 1;
 
+            await expect(owner.marketplace.delist(tokenId))
+                .to.emit(marketplace, "Delisted")
+                .withArgs(tokenId);
+
+            const listing = await marketplace.listings(tokenId);
+            expect(listing.beneficiary).to.be.equal(ethers.constants.AddressZero);
+            expect(listing.price).to.be.equal(0);
+        });
+        it("admin should be able to delist", async () => {
+            const tokenId = 1;
+
+            await expect(admin.marketplace.delist(tokenId))
+                .to.emit(marketplace, "Delisted")
+                .withArgs(tokenId);
+
+            const listing = await marketplace.listings(tokenId);
+            expect(listing.beneficiary).to.be.equal(ethers.constants.AddressZero);
+            expect(listing.price).to.be.equal(0);
+        });
+        it("artist should be able to delist", async () => {
+            const tokenId = 1;
+
+            await expect(artist.marketplace.delist(tokenId))
+                .to.emit(marketplace, "Delisted")
+                .withArgs(tokenId);
+
+            const listing = await marketplace.listings(tokenId);
+            expect(listing.beneficiary).to.be.equal(ethers.constants.AddressZero);
+            expect(listing.price).to.be.equal(0);
+        });
+        it("user should not be able to delist", async () => {
+            const tokenId = 1;
+            const user = users[0];
+
+            await expect(user.marketplace.delist(tokenId))
+                .to.be.revertedWith("Unauthorized");
+        });
     });
 });
