@@ -54,6 +54,11 @@ async function main() {
         fs.writeFileSync('./config/data.json', JSON.stringify(_config, null, 2));
         console.log('Config updated');
     }
+
+    // Set Admin
+    console.log('Setting Marketplace as admin on ProxyWebtoon ...');
+    await proxyWebtoon.connect(deployer).setAdmin(marketplace.address, true);
+    console.log('Marketplace set as admin on ProxyWebtoon!');
 }
 
 main()
