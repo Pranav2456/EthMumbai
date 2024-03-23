@@ -98,7 +98,7 @@ contract Marketplace is AccessLock, ReentrancyGuard {
             if (!refundSuccess) revert PaymentFailed();
         }
 
-        proxyWebtoon.mint(tokenId, buyer);
+        proxyWebtoon.mint(buyer, tokenId, webtoon.tokenURI(tokenId));
 
         emit Sold(tokenId, listing.beneficiary, buyer, listing.price);
     }
