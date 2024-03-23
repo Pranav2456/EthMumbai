@@ -10,7 +10,7 @@ import "./interfaces/IWebtoon.sol";
 /// @notice ERC1155 Multi Token minted as a proxy to the original Webtoon
 contract ProxyWebtoon is ERC1155URIStorage, AccessLock {
     /// @notice Event emitted when an ERC1155 token is minted from an ERC721 token
-    event Minted(address indexed to, uint256 indexed tokenId);
+    event Minted(address indexed to, uint256 indexed tokenId, string tokenURI);
 
     constructor() ERC1155("") {}
 
@@ -25,6 +25,6 @@ contract ProxyWebtoon is ERC1155URIStorage, AccessLock {
     ) external onlyAdmin whenNotPaused {
         _mint(to, tokenId, 1, "");
         _setURI(tokenId, tokenURI);
-        emit Minted(to, tokenId);
+        emit Minted(to, tokenId, tokenURI);
     }
 }
