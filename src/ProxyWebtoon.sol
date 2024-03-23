@@ -22,7 +22,7 @@ contract ProxyWebtoon is ERC1155URIStorage, AccessLock {
         address to,
         uint256 tokenId,
         string calldata tokenURI
-    ) external onlyAdmin {
+    ) external onlyAdmin whenNotPaused {
         _mint(to, tokenId, 1, "");
         _setURI(tokenId, tokenURI);
         emit Minted(to, tokenId);
