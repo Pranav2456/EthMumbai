@@ -1,7 +1,7 @@
 {
-  "name": "webtoon-contracts",
+  "name": "ethmumbai-contracts",
   "version": "1.0.0",
-  "description": "Hardhat project for the development of Solidity Smart Contracts for webtoon-project",
+  "description": "Hardhat project for the development of Solidity Smart Contracts for ethmumbai",
   "main": "index.js",
   "scripts": {
     "test": "npx hardhat test",

@@ -22,18 +22,6 @@ contract AccessLock is Ownable(msg.sender), Pausable {
         emit AdminSet(user, isEnabled);
     }
 
-    /// @notice Pause contract functions
-    /// @dev Callable by Admin/Owner
-    function pause() external onlyAdmin {
-        _pause();
-    }
-
-    /// @notice Unpause/Resume contract functions
-    /// @dev Callable by Admin/Owner
-    function unpause() external onlyAdmin {
-        _unpause();
-    }
-
     /// @notice reverts if caller is not admin or owner
     modifier onlyAdmin() {
         if (!isAdmin[msg.sender] && msg.sender != owner())
