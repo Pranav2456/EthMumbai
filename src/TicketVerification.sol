@@ -12,7 +12,10 @@ import "./utils/AccessLock.sol";
 contract VerificationTicket is AccessLock {
 
     struct Ticket { 
-        bytes32 dataHash; 
+        bytes32 dataHash;
+        string name;
+        string designation;
+        uint256 tenure; 
         address issuer; 
         Status status; 
         uint256 timestamp; 
@@ -27,10 +30,13 @@ contract VerificationTicket is AccessLock {
     event TicketApproved(uint256 indexed ticketId);
     event TicketRejected(uint256 indexed ticketId, string reason);
 
-    function createTicket(bytes32 _dataHash, address _issuer) public  {
+    function createTicket(bytes32 _dataHash, string calldata _name, string calldata _designation, uint256 tenure, address _issuer) public  {
         ticketId++; 
         tickets[ticketId] = Ticket({
             dataHash: _dataHash,
+            name : _name,
+            designation: _designation,
+            tenure: tenure,
             issuer: _issuer,
             status: Status.Pending,
             timestamp: block.timestamp 
