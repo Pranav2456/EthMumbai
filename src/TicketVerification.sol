@@ -1,15 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20; 
 
+pragma solidity ^0.8.20;  
 
-import "./utils/AccessLock.sol"; 
-import "./DAO.sol";
-
-pragma solidity ^0.8.20; 
-
-import "./utils/AccessLock.sol"; 
-
-contract VerificationTicket is AccessLock {
+contract VerificationTicket {
 
     struct Ticket { 
         bytes32 dataHash;
@@ -26,7 +20,7 @@ contract VerificationTicket is AccessLock {
     mapping(uint256 => Ticket) public tickets; 
     uint256 public ticketId; 
 
-    event TicketCreated(uint256 indexed ticketId, address indexed issuer);
+    event TicketCreated(uint256 indexed ticketId, address indexed issuer, bytes32 dataHash, string name, string designation, uint256 tenure);
     event TicketApproved(uint256 indexed ticketId);
     event TicketRejected(uint256 indexed ticketId, string reason);
 
@@ -42,16 +36,16 @@ contract VerificationTicket is AccessLock {
             timestamp: block.timestamp 
         });
 
-        emit TicketCreated(ticketId, _issuer);
+        emit TicketCreated(ticketId, _issuer, _dataHash, _name, _designation, tenure);
     }
 
-    function approveTicket(uint256 _ticketId) public onlyAdmin {
+    function approveTicket(uint256 _ticketId) public {
         require(tickets[_ticketId].status == Status.Pending, "Ticket not pending");
         tickets[_ticketId].status = Status.Approved;
         emit TicketApproved(_ticketId);
     }
 
-    function rejectTicket(uint256 _ticketId, string calldata _reason) public onlyAdmin {
+    function rejectTicket(uint256 _ticketId, string calldata _reason) public {
         require(tickets[_ticketId].status == Status.Pending, "Ticket not pending");
         tickets[_ticketId].status = Status.Rejected;
         emit TicketRejected(_ticketId, _reason);

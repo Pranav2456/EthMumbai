@@ -2,9 +2,7 @@
    
 pragma solidity ^0.8.20; 
 
-import "./utils/AccessLock.sol";
-
-contract DAOMembership is AccessLock {
+contract DAOMembership {
 
     mapping(address => uint256) public companyReputationScores; 
 
@@ -32,7 +30,7 @@ contract DAOMembership is AccessLock {
     mapping(uint256 => Proposal) public proposals;
     uint256 public nextProposalId;
 
-    function awardCompanyReputation(address company, VerificationAction action) public onlyAdmin {
+    function awardCompanyReputation(address company, VerificationAction action) public {
         uint256 amount = 10; 
         if (action == VerificationAction.FastVerification) {
             amount += 5; 
@@ -45,10 +43,8 @@ contract DAOMembership is AccessLock {
     uint256 currentProposalId = nextProposalId; 
     nextProposalId++;
 
-    // Create a storage reference
     Proposal storage newProposal = proposals[currentProposalId];
 
-    // Assign values directly to the storage reference
     newProposal.id = currentProposalId;
     newProposal.title = title;
     newProposal.description = description;
@@ -63,13 +59,12 @@ contract DAOMembership is AccessLock {
 
 
    function voteOnProposal(uint256 proposalId, bool approve) public {
-    // Get a reference to the Proposal in storage
     Proposal storage proposal = proposals[proposalId]; 
 
     require(proposal.deadline > block.timestamp, "Voting period has ended");
     require(!proposal.hasVoted[msg.sender], "Already voted");
 
-    // Modify the storage reference directly
+
     proposal.hasVoted[msg.sender] = true; 
     if (approve) {
         proposal.votesFor++;
